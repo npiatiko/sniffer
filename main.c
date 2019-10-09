@@ -114,29 +114,45 @@ void	terminate_process(int signum)
 {
 	pcap_breakloop(handle);
 }
-/*
+
 void	load_ip_list(char *dev)
 {
 	int fd = open(dev, O_RDONLY);
 	char buf[BUF_SIZE] = {0};
 	int i = 0, red = 0;
+	ip_list_t *ip_list = NULL, *tmp = NULL;
 
 	while ((red = read(fd, buf, BUF_SIZE)) > 0)
 	{
+		i = 0;
+		if (!ip_list)
+		{
+			ip_list = (ip_list_t *)malloc(sizeof(ip_list_t));
+			memcpy(ip_list, buf + i, sizeof(ip_list_t));
+			i += sizeof(ip_list_t);
+			ip_list->next = NULL;
+			tmp = ip_list;
+		}
 		while (i < red)
 		{
-
+			tmp->next = (ip_list_t *)malloc(sizeof(ip_list_t));
+			memcpy(tmp->next, buf + i, sizeof(ip_list_t));
+			i += sizeof(ip_list_t);
+			tmp = tmp->next;
+			tmp->next = NULL;
 		}
 	}
+	close(fd);
+//	print_ip_lst(ip_list);
 }
- */
+
 void	save_ip_list(ip_list_t *ip_lst, char *dev)
 {
 	int fd = open(dev, O_RDWR | O_CREAT | O_TRUNC);
 	char buf[BUF_SIZE] = {0};
 	int i = 0;
 
-	printf("bufsize = %ld", BUF_SIZE);
+//	printf("bufsize = %ld", BUF_SIZE);
 	while (ip_lst->next)
 	{
 		memcpy((buf + i), ip_lst->next, sizeof(ip_list_t));
@@ -244,7 +260,7 @@ int main(int argc, char **argv)
 	print_ip_lst(&ip_lst);
 	save_ip_list(&ip_lst, dev);
 	printf("\nCapture complete.\n");
-
+	load_ip_list(dev);
 	return 0;
 }
 
