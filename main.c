@@ -35,12 +35,11 @@ ip_list_t	*new_record(struct in_addr addr)
 	new_rec->count = 1;
 	new_rec->addr = addr;
 	new_rec->next = NULL;
-	new_rec->null = 0;
 	return (new_rec);
 }
 
 void	push_ip(ip_list_t **ip_lst, ip_list_t *new_addr){
-	ip_list_t tmp_head = {0, 0, 0, *ip_lst};
+	ip_list_t tmp_head = {0, 0, *ip_lst};
 	ip_list_t *tmp = tmp_head.next, *prev = &tmp_head;
 
 	while (tmp)
@@ -143,7 +142,7 @@ void	load_ip_list(char *dev)
 		}
 	}
 	close(fd);
-//	print_ip_lst(ip_list);
+	print_ip_lst(ip_list);
 }
 
 void	save_ip_list(ip_list_t *ip_lst, char *dev)
@@ -180,7 +179,7 @@ int main(int argc, char **argv)
 	bpf_u_int32 mask;            /* subnet mask */
 	bpf_u_int32 net;            /* ip */
 	int num_packets = 10;            /* number of packets to capture */
-	ip_list_t ip_lst = {0, 0, 0, NULL};
+	ip_list_t ip_lst = {0, 0, NULL};
 
 	/* check for capture device name on command-line */
 	if (argc == 2)

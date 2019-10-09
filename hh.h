@@ -24,7 +24,6 @@ typedef struct ip_list_s
 {
 	struct in_addr addr;
 	int count;
-	int null;
 	struct ip_list_s *next;
 }ip_list_t;
 
