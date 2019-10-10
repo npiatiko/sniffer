@@ -54,12 +54,14 @@ void search_ip(char *dev, char *addr)
 			{
 				printf("From: %s\tcount = %d\n", inet_ntoa(tmp->addr),
 					   tmp->count);
+				break;
 			}
 			tmp = tmp->next;
 		}
 	}
 	free_ip_list(ip_lst);
 }
+
 ip_list_t	*load_ip_list(char *dev)
 {
 	int fd = open(dev, O_RDONLY);
@@ -89,16 +91,16 @@ void	save_ip_list(ip_list_t *ip_lst, char *dev)
 	char buf[BUF_SIZE] = {0};
 	int i = 0;
 
-	while (ip_lst->next)
+	while (ip_lst)
 	{
-		memcpy((buf + i), ip_lst->next, sizeof(ip_list_t));
+		memcpy((buf + i), ip_lst, sizeof(ip_list_t));
 		i += sizeof(ip_list_t);
 		if (i == BUF_SIZE)
 		{
 			write(fd, buf, i);
 			i = 0;
 		}
-		ip_lst->next = ip_lst->next->next;
+		ip_lst = ip_lst->next;
 	}
 	if (i)
 	{

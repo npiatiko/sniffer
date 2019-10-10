@@ -32,5 +32,6 @@ void		save_ip_list(ip_list_t *ip_lst, char *dev);
 void		free_ip_list(ip_list_t *ip_lst);
 void		search_ip(char *dev, char *addr);
 void		error_exit(int err, char *exp1, char *exp2);
+char * get_ip_from_file();
 
 #endif
