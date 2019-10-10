@@ -81,7 +81,6 @@ ip_list_t	*load_ip_list(char *dev)
 	}
 	close(fd);
 	return (ip_list);
-//	print_ip_lst(ip_list);
 }
 
 void	save_ip_list(ip_list_t *ip_lst, char *dev)
@@ -90,7 +89,6 @@ void	save_ip_list(ip_list_t *ip_lst, char *dev)
 	char buf[BUF_SIZE] = {0};
 	int i = 0;
 
-//	printf("bufsize = %ld", BUF_SIZE);
 	while (ip_lst->next)
 	{
 		memcpy((buf + i), ip_lst->next, sizeof(ip_list_t));

@@ -28,7 +28,3 @@ char *get_filter_exp(char *iface)
 	memcpy(expr + strlen(expr), inet_ntoa(get_iface_ip(iface)), strlen(inet_ntoa(get_iface_ip(iface))) + 1);
 	return expr;
 }
-//int main()
-// {
-//	printf("ip = %s\n", get_filter_exp("eno1"));
-//}
