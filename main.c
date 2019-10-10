@@ -11,7 +11,7 @@
 
 pcap_t *handle;
 ip_list_t *g_ip_lst = NULL;
-
+char *g_dev = NULL, g_restart = 1, g_change_dev = 0;
 
 int		counter(ip_list_t *ip_lst, struct in_addr addr)
 {
@@ -44,7 +44,7 @@ void	got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
 //	ip_list_t **ip_lst = (ip_list_t **)args;
 
 	ip = (struct ip *) (packet + SIZE_ETHERNET);
-//	printf("From: %s\n", inet_ntoa(ip->ip_src));
+	printf("From: %s\n", inet_ntoa(ip->ip_src));
 	if (counter(g_ip_lst, ip->ip_src))
 	{
 		push_ip(&g_ip_lst, new_record(ip->ip_src));
@@ -54,6 +54,7 @@ void	got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
 void	terminate_process(int signum)
 {
 	(void)signum;
+	g_restart = 0;
 	pcap_breakloop(handle);
 }
 
@@ -127,19 +128,18 @@ void set_pid_file(int pid)
 	}
 }
 
-char *get_ip_from_file()
+char *get_data_from_file(char *fname)
 {
 	FILE *f;
 	static char buf[16];
 
-	f = fopen(".ip", "r+");
+	f = fopen(fname, "r+");
 	if (f)
 	{
 		fscanf(f, "%s", buf);
 		fclose(f);
-//		unlink(".ip");
+//		unlink(fname);
 	}
-	printf("ip = %s\n", buf);
 	return (buf);
 }
 
@@ -148,8 +148,10 @@ void show(int sig)
 	(void)sig;
 	struct in_addr ip;
 	ip_list_t *tmp = g_ip_lst;
+	char tmp_str[20];
 
-	if (inet_aton(get_ip_from_file(), &ip))
+	memcpy(tmp_str, g_dev, strlen(g_dev) + 1);
+	if (inet_aton(get_data_from_file(".ip"), &ip))
 	{
 		while (tmp)
 		{
@@ -162,28 +164,48 @@ void show(int sig)
 			tmp = tmp->next;
 		}
 	}
+	memcpy(g_dev, tmp_str, strlen(tmp_str) + 1);
 }
-void	sniff(char *dev)
+
+void change_dev(int sig)
+{
+	(void)sig;
+
+	g_restart = 1;
+	g_change_dev = 1;
+	pcap_breakloop(handle);
+}
+void sniff()
 {
 	struct bpf_program fp;
 //	ip_list_t *ip_lst = load_ip_list(dev);
-	g_ip_lst = load_ip_list(dev);
 	int pid;
 
 
 	if (!(pid = fork()))
 	{
 		setsid();
-		init(dev, &fp);
 		signal(SIGINT, terminate_process); /*stop*/
 		signal(SIGUSR1, show);  /*show [ip] count*/
-		pcap_loop(handle, 0, got_packet, (u_char *) &g_ip_lst);
-		pcap_freecode(&fp);
-		pcap_close(handle);
-//		print_ip_lst(g_ip_lst);
-		save_ip_list(g_ip_lst, dev);
-		free_ip_list(g_ip_lst);
-		fprintf(stderr, "\nCapture complete.\n");
+		signal(SIGUSR2, change_dev);  /*select iface*/
+		while (g_restart)
+		{
+			if(g_change_dev)
+			{
+				g_dev = get_data_from_file(".dev");
+				g_change_dev = 0;
+				g_ip_lst = NULL;
+			}
+			g_ip_lst = load_ip_list(g_dev);
+			init(g_dev, &fp);
+			pcap_loop(handle, 0, got_packet, (u_char *) &g_ip_lst);
+			pcap_freecode(&fp);
+			pcap_close(handle);
+			print_ip_lst(g_ip_lst);
+			save_ip_list(g_ip_lst, g_dev);
+			free_ip_list(g_ip_lst);
+			fprintf(stderr, "\nCapture complete.\n");
+		}
 	}
 	else
 	{
@@ -214,14 +236,14 @@ void print_all_stat()
 
 int		main(int ac, char **av)
 {
-	char *dev = NULL;
+//	char *dev = NULL;
 	ip_list_t *ip_lst = NULL;
 
 	(ac > 1 && !strcmp("--help", av[1])) || ac > 4 ? (usage()): 0;
 	if (ac == 1)
 	{
-		dev = get_dev_name();
-		sniff(dev);
+		g_dev = get_dev_name();
+		sniff();
 	}else if (ac == 2)
 	{
 		if (!strcmp("stat", av[1]))
@@ -230,15 +252,15 @@ int		main(int ac, char **av)
 		}
 		else
 		{
-			dev = av[1];
-			sniff(dev);
+			g_dev = av[1];
+			sniff();
 		}
 	}else if (ac == 3)
 	{
 		if (!strcmp("stat", av[1]))
 		{
-			dev = av[2];
-			ip_lst = load_ip_list(dev);
+			g_dev = av[2];
+			ip_lst = load_ip_list(g_dev);
 			print_ip_lst(ip_lst);
 			free_ip_list(ip_lst);
 		}
@@ -250,8 +272,8 @@ int		main(int ac, char **av)
 	{
 		if (!strcmp("show", av[1]))
 		{
-			dev = av[2];
-			search_ip(dev, av[3]);
+			g_dev = av[2];
+			search_ip(g_dev, av[3]);
 		}
 		else
 		{

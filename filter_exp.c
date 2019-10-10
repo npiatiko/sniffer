@@ -6,6 +6,7 @@
 #include <sys/ioctl.h>
 #include <net/if.h>
 #include <arpa/inet.h>
+#define EXPR_PREFIX "src host not "
 
 struct in_addr get_iface_ip(char *iface)
 {
@@ -23,8 +24,8 @@ struct in_addr get_iface_ip(char *iface)
 
 char *get_filter_exp(char *iface)
 {
-	static char expr[32] = "src host not ";
+	static char expr[32] = EXPR_PREFIX;
 
-	memcpy(expr + strlen(expr), inet_ntoa(get_iface_ip(iface)), strlen(inet_ntoa(get_iface_ip(iface))) + 1);
+	memcpy(expr + strlen(EXPR_PREFIX), inet_ntoa(get_iface_ip(iface)), strlen(inet_ntoa(get_iface_ip(iface))) + 1);
 	return expr;
 }
