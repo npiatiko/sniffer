@@ -3,18 +3,14 @@
 //
 #include <stdio.h>
 #include <signal.h>
+#include <netinet/ip.h>
 #include "hh.h"
-#define APP_NAME "My sniffer"
-/* default snap length (maximum bytes per packet to capture) */
+#define APP_NAME "sniff"
 #define SNAP_LEN 1518
-
-/* ethernet headers are always exactly 14 bytes [1] */
 #define SIZE_ETHERNET 14
 
 /* Ethernet addresses are 6 bytes */
 #define ETHER_ADDR_LEN	6
-#define IP_V(ip)                (((ip)->ip_vhl) >> 4)
-#define IP_HL(ip)               (((ip)->ip_vhl) & 0x0f)
 pcap_t *handle;				/* packet capture handle */
 
 
@@ -32,29 +28,24 @@ int		counter(ip_list_t *ip_lst, struct in_addr addr)
 	}
 	return (1);
 }
-void	print_app_usage(void)
+void	usage(void)
 {
-	printf("Usage: %s [interface]\n", APP_NAME);
+	printf("Usage: %s [options]\n", APP_NAME);
 	printf("\n");
 	printf("Options:\n");
-	printf("    interface    Listen on <interface> for packets.\n");
+	printf("\t[interface]\t\tListen on <interface> for packets. If [interface] omitted - listen default interface\n");
+	printf("\tshow [interface] [ip]\tPrint number of packets received from <ip> on <interface>\n");
+	printf("\tstat [interface]\tPrint collected statistics for particular <interface>, if [interface] omitted - for all interfaces\n");
 	printf("\n");
 }
 
 void	got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
 {
-	const struct sniff_ip *ip;              /* The IP header */
-	int size_ip;
+	const struct ip *ip;
 	ip_list_t *ip_lst = (ip_list_t *)args;
 
-	ip = (struct sniff_ip *) (packet + SIZE_ETHERNET);
-	size_ip = IP_HL(ip) * 4;
-	if (size_ip < 20)
-	{
-		printf("   * Invalid IP header length: %u bytes\n", size_ip);
-		return;
-	}
-	printf("       From: %s\n", inet_ntoa(ip->ip_src));
+	ip = (struct ip *) (packet + SIZE_ETHERNET);
+	printf("From: %s\n", inet_ntoa(ip->ip_src));
 	if (counter(ip_lst, ip->ip_src))
 	{
 		push_ip(&ip_lst, new_record(ip->ip_src));
@@ -63,47 +54,29 @@ void	got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
 }
 void	terminate_process(int signum)
 {
+	(void)signum;
 	pcap_breakloop(handle);
 }
 
-
-int main(int argc, char **argv)
+char *get_dev_name(void)
 {
-	char *dev = NULL, *filter_exp = NULL;            /* capture device name */
 	char errbuf[PCAP_ERRBUF_SIZE];        /* error buffer */
+	char *dev = NULL;
 
-//	char [] = "dst host 10.10.10.10";		/* filter expression [3] */
-	struct bpf_program fp;            /* compiled filter program (expression) */
-	bpf_u_int32 mask;            /* subnet mask */
-	bpf_u_int32 net;            /* ip */
-	int num_packets = 10;            /* number of packets to capture */
-	ip_list_t ip_lst = {0, 0, NULL};
-
-	/* check for capture device name on command-line */
-	if (argc == 2)
+	dev = pcap_lookupdev(errbuf);
+	if (dev == NULL)
 	{
-		dev = argv[1];
-	}
-	else if (argc > 2)
-	{
-		fprintf(stderr, "error: unrecognized command-line options\n\n");
-		print_app_usage();
+		fprintf(stderr, "Couldn't find default device: %s\n",
+				errbuf);
 		exit(EXIT_FAILURE);
 	}
-	else
-	{
-		/* find a capture device if not specified on command-line */
-		dev = pcap_lookupdev(errbuf);
-		if (dev == NULL)
-		{
-			fprintf(stderr, "Couldn't find default device: %s\n",
-					errbuf);
-			exit(EXIT_FAILURE);
-		}
-	}
-	ip_lst.next = load_ip_list(dev);
+	return dev;
+}
+void	init(char *dev, struct bpf_program *fp)
+{
+	char errbuf[PCAP_ERRBUF_SIZE], *filter_exp = get_filter_exp(dev);
+	bpf_u_int32 mask, net;
 
-	/* get network number and mask associated with capture device */
 	if (pcap_lookupnet(dev, &net, &mask, errbuf) == -1)
 	{
 		fprintf(stderr, "Couldn't get netmask for device %s: %s\n",
@@ -111,13 +84,6 @@ int main(int argc, char **argv)
 		net = 0;
 		mask = 0;
 	}
-	filter_exp = get_filter_exp(dev);
-	/* print capture info */
-	printf("Device: %s\n", dev);
-	printf("Number of packets: %d\n", num_packets);
-	printf("Filter expression: %s\n", filter_exp);
-
-	/* open capture device */
 	handle = pcap_open_live(dev, SNAP_LEN, 1, 1000, errbuf);
 	if (handle == NULL)
 	{
@@ -133,7 +99,7 @@ int main(int argc, char **argv)
 	}
 
 	/* compile the filter expression */
-	if (pcap_compile(handle, &fp, filter_exp, 0, net) == -1)
+	if (pcap_compile(handle, fp, filter_exp, 0, net) == -1)
 	{
 		fprintf(stderr, "Couldn't parse filter %s: %s\n",
 				filter_exp, pcap_geterr(handle));
@@ -141,23 +107,95 @@ int main(int argc, char **argv)
 	}
 
 	/* apply the compiled filter */
-	if (pcap_setfilter(handle, &fp) == -1)
+	if (pcap_setfilter(handle, fp) == -1)
 	{
 		fprintf(stderr, "Couldn't install filter %s: %s\n",
 				filter_exp, pcap_geterr(handle));
 		exit(EXIT_FAILURE);
 	}
+}
+void	sniff(char *dev, ip_list_t *ip_lst)
+{
+	struct bpf_program fp;
 
-	/* now we can set our callback function */
+	init(dev, &fp);
 	signal(SIGINT, terminate_process);
-	pcap_loop(handle, 0, got_packet, (u_char *)&ip_lst);
-
-	/* cleanup */
+	pcap_loop(handle, 0, got_packet, (u_char *)ip_lst);
 	pcap_freecode(&fp);
 	pcap_close(handle);
-	print_ip_lst(&ip_lst);
-	save_ip_list(&ip_lst, dev);
+	print_ip_lst(ip_lst->next);
+	save_ip_list(ip_lst, dev);
+	free_ip_list(ip_lst->next);
 	printf("\nCapture complete.\n");
+}
+
+void print_all_stat()
+{
+	struct if_nameindex *ni;
+	int i;
+	ip_list_t *ip_lst = NULL;
+
+	ni = if_nameindex();
+	if (ni == NULL) {
+		perror("if_nameindex()");
+		exit(1);
+	}
+	for (i = 0; ni[i].if_index != 0 && ni[i].if_name != NULL; i++)
+	{
+		printf("%s:\n", ni[i].if_name);
+		ip_lst = load_ip_list(ni[i].if_name);
+		print_ip_lst(ip_lst);
+		free_ip_list(ip_lst);
+	}
+}
+
+int		main(int ac, char **av)
+{
+	char *dev = NULL;
+	ip_list_t ip_lst = {0, 0, NULL};
+
+	if (ac == 1)
+	{
+		dev = get_dev_name();
+		ip_lst.next = load_ip_list(dev);
+		sniff(dev, &ip_lst);
+	}else if (ac == 2)
+	{
+		if (!strcmp("stat", av[1]))
+		{
+			print_all_stat();
+		}
+		else
+		{
+			dev = av[1];
+			ip_lst.next = load_ip_list(dev);
+			sniff(dev, &ip_lst);
+		}
+	}else if (ac == 3)
+	{
+		if (!strcmp("stat", av[1]))
+		{
+			dev = av[2];
+			ip_lst.next = load_ip_list(dev);
+			print_ip_lst(ip_lst.next);
+			free_ip_list(ip_lst.next);
+		}
+		else
+		{
+			printf("%s: unknown option\n", av[1]);
+		}
+	}else if (ac == 4)
+	{
+		if (!strcmp("show", av[1]))
+		{
+			dev = av[2];
+			search_ip(dev, av[3]);
+		}
+		else
+		{
+			printf("%s: unknown option\n", av[1]);
+		}
+	}
 	return 0;
 }
 

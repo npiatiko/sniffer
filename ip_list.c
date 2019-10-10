@@ -37,9 +37,28 @@ void	print_ip_lst(ip_list_t *ip_lst)
 {
 	while (ip_lst)
 	{
-		printf(" raw = %u From: %s\tcount = %d\n", ip_lst->addr.s_addr, inet_ntoa(ip_lst->addr), ip_lst->count);
+		printf("From: %s\tcount = %d\n", inet_ntoa(ip_lst->addr), ip_lst->count);
 		ip_lst = ip_lst->next;
 	}
+}
+void search_ip(char *dev, char *addr)
+{
+	struct in_addr ip;
+	ip_list_t *ip_lst = load_ip_list(dev), *tmp = ip_lst;
+
+	if (inet_aton(addr, &ip))
+	{
+		while (tmp)
+		{
+			if (tmp->addr.s_addr == ip.s_addr)
+			{
+				printf("From: %s\tcount = %d\n", inet_ntoa(tmp->addr),
+					   tmp->count);
+			}
+			tmp = tmp->next;
+		}
+	}
+	free_ip_list(ip_lst);
 }
 ip_list_t	*load_ip_list(char *dev)
 {
@@ -51,21 +70,13 @@ ip_list_t	*load_ip_list(char *dev)
 	while ((red = read(fd, buf, BUF_SIZE)) > 0)
 	{
 		i = 0;
-		if (!ip_list)
-		{
-			ip_list = (ip_list_t *)malloc(sizeof(ip_list_t));
-			memcpy(ip_list, buf + i, sizeof(ip_list_t));
-			i += sizeof(ip_list_t);
-			ip_list->next = NULL;
-			tmp = ip_list;
-		}
 		while (i < red)
 		{
-			tmp->next = (ip_list_t *)malloc(sizeof(ip_list_t));
-			memcpy(tmp->next, buf + i, sizeof(ip_list_t));
+			tmp = (ip_list_t *)malloc(sizeof(ip_list_t));
+			memcpy(tmp, buf + i, sizeof(ip_list_t));
 			i += sizeof(ip_list_t);
-			tmp = tmp->next;
 			tmp->next = NULL;
+			push_ip(&ip_list, tmp);
 		}
 	}
 	close(fd);
@@ -96,4 +107,16 @@ void	save_ip_list(ip_list_t *ip_lst, char *dev)
 		write(fd, buf, i);
 	}
 	close(fd);
+}
+
+void free_ip_list(ip_list_t *ip_lst)
+{
+	ip_list_t *tmp = NULL;
+
+	while (ip_lst)
+	{
+		tmp = ip_lst;
+		ip_lst = ip_lst->next;
+		free(tmp);
+	}
 }
