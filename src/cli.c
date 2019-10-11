@@ -15,12 +15,14 @@
 
 void	usage(void)
 {
-	printf("Usage: %s [options]\n", APP_NAME);
+	printf("Usage: sudo ./%s [options]\n", APP_NAME);
 	printf("\n");
 	printf("Options:\n");
+	printf("\tstart\t\t\tstart daemon on default iface.\n");
 	printf("\tselect [interface]\tSelect <interface> for sniffing.\n");
 	printf("\tshow [ip] count\t\tPrint number of packets received from <ip> on <interface>.\n");
 	printf("\tstat [interface]\tPrint collected statistics for particular <interface>, if [interface] omitted - for all interfaces.\n");
+	printf("\t--help\t\t\tShow usage.\n");
 	printf("\n");
 	exit(EXIT_SUCCESS);
 }

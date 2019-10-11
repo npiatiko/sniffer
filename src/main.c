@@ -12,7 +12,7 @@ char *g_dev = NULL, g_restart = 1, g_change_dev = 0, g_stat = 0;
 
 void	usage(void)
 {
-	printf("Usage: ./%s - to run daemon\n", APP_NAME);
+	printf("Usage: sudo ./%s - to run daemon\n", APP_NAME);
 	exit(EXIT_SUCCESS);
 }
 
