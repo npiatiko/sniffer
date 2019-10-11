@@ -19,6 +19,8 @@ void	usage(void)
 void	got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
 {
 	const struct ip *ip;
+	(void)header;
+	(void)args;
 
 	ip = (struct ip *) (packet + SIZE_ETHERNET);
 	if (counter(g_ip_lst, ip->ip_src))
@@ -132,6 +134,7 @@ void sniff()
 
 int		main(int ac, char **av)
 {
+	(void)av;
 	ac > 1 ? (usage()): 0;
 	if (ac == 1)
 	{

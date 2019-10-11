@@ -3,7 +3,7 @@
 //
 
 #include "hh.h"
-#define BUF_SIZE (2 * sizeof(ip_list_t))
+#define BUF_SIZE (20 * sizeof(ip_list_t))
 
 ip_list_t	*new_record(struct in_addr addr)
 {
@@ -16,7 +16,7 @@ ip_list_t	*new_record(struct in_addr addr)
 }
 
 void	push_ip(ip_list_t **ip_lst, ip_list_t *new_addr){
-	ip_list_t tmp_head = {0, 0, *ip_lst};
+	ip_list_t tmp_head = {{0}, 0, *ip_lst};
 	ip_list_t *tmp = tmp_head.next, *prev = &tmp_head;
 
 	while (tmp)
