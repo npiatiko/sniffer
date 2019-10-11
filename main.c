@@ -220,6 +220,7 @@ void sniff()
 			save_ip_list(g_ip_lst, g_dev);
 			free_ip_list(g_ip_lst);
 		}
+		set_pid_file(0);
 		fprintf(stderr, "\nCapture complete.\n");
 	}
 	else
