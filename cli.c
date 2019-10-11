@@ -7,7 +7,7 @@
 #include <signal.h>
 #include <stdlib.h>
 
-#define APP_NAME "sniff"
+#define APP_NAME "cli"
 #define I_FNAME ".iface"
 #define IP_FNAME ".ip"
 #define P_FNAME ".pid"

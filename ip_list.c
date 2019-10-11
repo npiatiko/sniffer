@@ -37,29 +37,27 @@ void	print_ip_lst(ip_list_t *ip_lst)
 {
 	while (ip_lst)
 	{
-		printf("From: %s\tcount = %d\n", inet_ntoa(ip_lst->addr), ip_lst->count);
+		printf("%s\tcount = %d\n", inet_ntoa(ip_lst->addr), ip_lst->count);
 		ip_lst = ip_lst->next;
 	}
 }
-void search_ip(char *dev, char *addr)
+void search_ip(ip_list_t *ip_lst, char *addr)
 {
 	struct in_addr ip;
-	ip_list_t *ip_lst = load_ip_list(dev), *tmp = ip_lst;
 
 	if (inet_aton(addr, &ip))
 	{
-		while (tmp)
+		while (ip_lst)
 		{
-			if (tmp->addr.s_addr == ip.s_addr)
+			if (ip_lst->addr.s_addr == ip.s_addr)
 			{
-				printf("From: %s\tcount = %d\n", inet_ntoa(tmp->addr),
-					   tmp->count);
+				printf("%s\tcount = %d\n", inet_ntoa(ip_lst->addr),
+					   ip_lst->count);
 				break;
 			}
-			tmp = tmp->next;
+			ip_lst = ip_lst->next;
 		}
 	}
-	free_ip_list(ip_lst);
 }
 
 ip_list_t	*load_ip_list(char *dev)
@@ -119,4 +117,18 @@ void free_ip_list(ip_list_t *ip_lst)
 		ip_lst = ip_lst->next;
 		free(tmp);
 	}
+}
+
+int		counter(ip_list_t *ip_lst, struct in_addr addr)
+{
+	while (ip_lst)
+	{
+		if (ip_lst->addr.s_addr == addr.s_addr)
+		{
+			ip_lst->count++;
+			return (0);
+		}
+		ip_lst = ip_lst->next;
+	}
+	return (1);
 }
