@@ -3,15 +3,15 @@ NAME_CLI = cli
 
 FLAGS = -Wall -Wextra -Werror
 
-SRCS_DAEMON =	./src/file_worker.c
-                ./src/filter_exp.c
-                ./src/ip_list.c
-                ./src/main.c
+SRCS_DAEMON =	./src/file_worker.c\
+                ./src/filter_exp.c\
+                ./src/ip_list.c\
+                ./src/main.c\
                 ./src/signal_handler.c
 
 SRCS_CLI = 		src/cli.c
 
-INC =			./include/hh.h
+INC =			./includes/
 
 OBJ_DAEMON = $(SRCS_DAEMON:.c=.o)
 
@@ -28,7 +28,7 @@ $(NAME_CLI): $(OBJ_CLI)
 	gcc -o $(NAME_CLI) $(OBJ_CLI)
 
 ./src/%.o: ./src/%.c $(INC)
-	gcc $(FLAGS) -I./include -o $@ -c $<
+	gcc $(FLAGS) -I $(INC) -o $@ -c $<
 
 clean:
 	rm -f $(OBJ_DAEMON)
