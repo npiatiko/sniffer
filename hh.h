@@ -28,10 +28,11 @@ void		got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *p
 void		usage(void);
 char		*get_filter_exp(char *iface);
 void		print_ip_lst(ip_list_t *ip_lst);
+void		print_all_stat();
 void		save_ip_list(ip_list_t *ip_lst, char *dev);
 void		free_ip_list(ip_list_t *ip_lst);
 void		search_ip(char *dev, char *addr);
 void		error_exit(int err, char *exp1, char *exp2);
-char *get_data_from_file(char *fname);
+char		*get_data_from_file(char *fname);
 
 #endif

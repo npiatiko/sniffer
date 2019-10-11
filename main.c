@@ -6,12 +6,16 @@
 #include <netinet/ip.h>
 #include "hh.h"
 #define APP_NAME "sniff"
+#define I_FNAME ".iface"
+#define IP_FNAME ".ip"
+#define P_FNAME ".pid"
 #define SNAP_LEN 1518
 #define SIZE_ETHERNET 14
+#define GET_DATA_BUFSIZE 16
 
 pcap_t *handle;
 ip_list_t *g_ip_lst = NULL;
-char *g_dev = NULL, g_restart = 1, g_change_dev = 0;
+char *g_dev = NULL, g_restart = 1, g_change_dev = 0, g_stat = 0;
 
 int		counter(ip_list_t *ip_lst, struct in_addr addr)
 {
@@ -41,10 +45,9 @@ void	usage(void)
 void	got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
 {
 	const struct ip *ip;
-//	ip_list_t **ip_lst = (ip_list_t **)args;
 
 	ip = (struct ip *) (packet + SIZE_ETHERNET);
-	printf("From: %s\n", inet_ntoa(ip->ip_src));
+//	printf("From: %s\n", inet_ntoa(ip->ip_src));
 	if (counter(g_ip_lst, ip->ip_src))
 	{
 		push_ip(&g_ip_lst, new_record(ip->ip_src));
@@ -120,7 +123,7 @@ void set_pid_file(int pid)
 {
 	FILE *f;
 
-	f = fopen(".pid", "w+");
+	f = fopen(P_FNAME, "w+");
 	if (f)
 	{
 		fprintf(f, "%u", pid);
@@ -131,8 +134,9 @@ void set_pid_file(int pid)
 char *get_data_from_file(char *fname)
 {
 	FILE *f;
-	static char buf[16];
+	static char buf[GET_DATA_BUFSIZE];
 
+	memset(buf, 0, GET_DATA_BUFSIZE);
 	f = fopen(fname, "r+");
 	if (f)
 	{
@@ -148,10 +152,10 @@ void show(int sig)
 	(void)sig;
 	struct in_addr ip;
 	ip_list_t *tmp = g_ip_lst;
-	char tmp_str[20];
+	char tmp_str[GET_DATA_BUFSIZE];
 
 	memcpy(tmp_str, g_dev, strlen(g_dev) + 1);
-	if (inet_aton(get_data_from_file(".ip"), &ip))
+	if (inet_aton(get_data_from_file(IP_FNAME), &ip))
 	{
 		while (tmp)
 		{
@@ -171,14 +175,20 @@ void change_dev(int sig)
 {
 	(void)sig;
 
-	g_restart = 1;
 	g_change_dev = 1;
 	pcap_breakloop(handle);
+}
+void	print_stat(int sig)
+{
+	(void)sig;
+
+	g_stat = 1;
+	pcap_breakloop(handle);
+
 }
 void sniff()
 {
 	struct bpf_program fp;
-//	ip_list_t *ip_lst = load_ip_list(dev);
 	int pid;
 
 
@@ -188,24 +198,29 @@ void sniff()
 		signal(SIGINT, terminate_process); /*stop*/
 		signal(SIGUSR1, show);  /*show [ip] count*/
 		signal(SIGUSR2, change_dev);  /*select iface*/
+		signal(SIGCONT, print_stat);  /*stat*/
 		while (g_restart)
 		{
 			if(g_change_dev)
 			{
-				g_dev = get_data_from_file(".dev");
+				g_dev = get_data_from_file(I_FNAME);
 				g_change_dev = 0;
 				g_ip_lst = NULL;
+			}
+			if (g_stat)
+			{
+				g_stat = 0;
+				print_all_stat();
 			}
 			g_ip_lst = load_ip_list(g_dev);
 			init(g_dev, &fp);
 			pcap_loop(handle, 0, got_packet, (u_char *) &g_ip_lst);
 			pcap_freecode(&fp);
 			pcap_close(handle);
-			print_ip_lst(g_ip_lst);
 			save_ip_list(g_ip_lst, g_dev);
 			free_ip_list(g_ip_lst);
-			fprintf(stderr, "\nCapture complete.\n");
 		}
+		fprintf(stderr, "\nCapture complete.\n");
 	}
 	else
 	{
@@ -219,66 +234,43 @@ void print_all_stat()
 	struct if_nameindex *ni;
 	int i;
 	ip_list_t *ip_lst = NULL;
+	char tmp_str[GET_DATA_BUFSIZE];
 
-	ni = if_nameindex();
-	if (ni == NULL) {
-		perror("if_nameindex()");
-		exit(1);
-	}
-	for (i = 0; ni[i].if_index != 0 && ni[i].if_name != NULL; i++)
+	memcpy(tmp_str, g_dev, strlen(g_dev) + 1);
+	g_dev = get_data_from_file(I_FNAME);
+	if (strlen(g_dev))
 	{
-		printf("%s:\n", ni[i].if_name);
-		ip_lst = load_ip_list(ni[i].if_name);
+		ip_lst = load_ip_list(g_dev);
 		print_ip_lst(ip_lst);
 		free_ip_list(ip_lst);
+		memcpy(g_dev, tmp_str, strlen(tmp_str) + 1);
+	}
+	else
+	{
+		memcpy(g_dev, tmp_str, strlen(tmp_str) + 1);
+		ni = if_nameindex();
+		if (ni == NULL)
+		{
+			perror("if_nameindex()");
+			return;
+		}
+		for (i = 0; ni[i].if_index != 0 && ni[i].if_name != NULL; i++)
+		{
+			printf("%s:\n", ni[i].if_name);
+			ip_lst = load_ip_list(ni[i].if_name);
+			print_ip_lst(ip_lst);
+			free_ip_list(ip_lst);
+		}
 	}
 }
 
 int		main(int ac, char **av)
 {
-//	char *dev = NULL;
-	ip_list_t *ip_lst = NULL;
-
-	(ac > 1 && !strcmp("--help", av[1])) || ac > 4 ? (usage()): 0;
+	ac > 1 ? (usage()): 0;
 	if (ac == 1)
 	{
 		g_dev = get_dev_name();
 		sniff();
-	}else if (ac == 2)
-	{
-		if (!strcmp("stat", av[1]))
-		{
-			print_all_stat();
-		}
-		else
-		{
-			g_dev = av[1];
-			sniff();
-		}
-	}else if (ac == 3)
-	{
-		if (!strcmp("stat", av[1]))
-		{
-			g_dev = av[2];
-			ip_lst = load_ip_list(g_dev);
-			print_ip_lst(ip_lst);
-			free_ip_list(ip_lst);
-		}
-		else
-		{
-			printf("%s: unknown option\n", av[1]);
-		}
-	}else if (ac == 4)
-	{
-		if (!strcmp("show", av[1]))
-		{
-			g_dev = av[2];
-			search_ip(g_dev, av[3]);
-		}
-		else
-		{
-			printf("%s: unknown option\n", av[1]);
-		}
 	}
 	return 0;
 }
