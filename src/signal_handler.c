@@ -57,13 +57,18 @@ void print_all_stat()
 	int i;
 	ip_list_t *ip_lst = NULL;
 	char tmp_str[GET_DATA_BUFSIZE];
+	FILE *f = NULL;
 
+	if (!(f = fopen(FIFO_NAME, "r+")))
+	{
+		printf("error open fifo");
+	}
 	memcpy(tmp_str, g_dev, strlen(g_dev) + 1);
 	g_dev = get_data_from_file(I_FNAME);
 	if (strlen(g_dev))
 	{
 		ip_lst = load_ip_list(g_dev);
-		print_ip_lst(ip_lst);
+		print_ip_lst(ip_lst, f);
 		free_ip_list(ip_lst);
 		memcpy(g_dev, tmp_str, strlen(tmp_str) + 1);
 	}
@@ -80,8 +85,9 @@ void print_all_stat()
 		{
 			printf("%s:\n", ni[i].if_name);
 			ip_lst = load_ip_list(ni[i].if_name);
-			print_ip_lst(ip_lst);
+			print_ip_lst(ip_lst, f);
 			free_ip_list(ip_lst);
 		}
 	}
+	fclose(f);
 }

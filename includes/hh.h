@@ -20,7 +20,7 @@
 # define SNAP_LEN 1518
 # define SIZE_ETHERNET 14
 # define GET_DATA_BUFSIZE 16
-
+# define FIFO_NAME "/tmp/snifferfifo"
 typedef struct ip_list_s
 {
 	struct in_addr addr;
@@ -43,7 +43,7 @@ ip_list_t * load_ip_list(char *dev);
 void		got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet);
 void		usage(void);
 char		*get_filter_exp(char *iface);
-void		print_ip_lst(ip_list_t *ip_lst);
+void print_ip_lst(ip_list_t *ip_lst, FILE *f);
 void		print_all_stat();
 void		save_ip_list(ip_list_t *ip_lst, char *dev);
 void		free_ip_list(ip_list_t *ip_lst);

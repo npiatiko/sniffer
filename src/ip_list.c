@@ -33,31 +33,37 @@ void	push_ip(ip_list_t **ip_lst, ip_list_t *new_addr){
 	*ip_lst = tmp_head.next;
 }
 
-void	print_ip_lst(ip_list_t *ip_lst)
+void print_ip_lst(ip_list_t *ip_lst, FILE *f)
 {
 	while (ip_lst)
 	{
-		printf("%s\tcount = %d\n", inet_ntoa(ip_lst->addr), ip_lst->count);
+		fprintf(f, "%s\tcount = %d\n", inet_ntoa(ip_lst->addr), ip_lst->count);
 		ip_lst = ip_lst->next;
 	}
 }
 void search_ip(ip_list_t *ip_lst, char *addr)
 {
+	FILE *f = NULL;
 	struct in_addr ip;
 
+	if (!(f = fopen(FIFO_NAME, "r+")))
+	{
+		printf("error open fifo");
+	}
 	if (inet_aton(addr, &ip))
 	{
 		while (ip_lst)
 		{
 			if (ip_lst->addr.s_addr == ip.s_addr)
 			{
-				printf("%s\tcount = %d\n", inet_ntoa(ip_lst->addr),
+				fprintf(f, "%s\tcount = %d\n", inet_ntoa(ip_lst->addr),
 					   ip_lst->count);
 				break;
 			}
 			ip_lst = ip_lst->next;
 		}
 	}
+	fclose(f);
 }
 
 ip_list_t	*load_ip_list(char *dev)
