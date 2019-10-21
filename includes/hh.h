@@ -25,7 +25,8 @@ typedef struct ip_list_s
 {
 	struct in_addr addr;
 	int count;
-	struct ip_list_s *next;
+	unsigned char height;
+	struct ip_list_s *left, *right;
 }ip_list_t;
 
 extern char g_restart;
@@ -36,17 +37,15 @@ extern char g_change_dev;
 extern char g_stat;
 
 
-void		push_ip(ip_list_t **ip_lst, ip_list_t *new_addr);
-ip_list_t	*new_record(struct in_addr addr);
-int			counter(ip_list_t *ip_lst, struct in_addr addr);
-ip_list_t * load_ip_list(char *dev);
+ip_list_t *new_record(struct in_addr addr, int count);
+ip_list_t	*load_ip_list(char *dev);
 void		got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet);
 void		usage(void);
 char		*get_filter_exp(char *iface);
-void print_ip_lst(ip_list_t *ip_lst, FILE *f);
+void		inorder_print(ip_list_t *ip_lst, FILE *f);
 void		print_all_stat();
 void		save_ip_list(ip_list_t *ip_lst, char *dev);
-void		free_ip_list(ip_list_t *ip_lst);
+void		free_ip_list(ip_list_t **ip_lst);
 void		set_pid_file(int pid);
 void		terminate_process(int signum);
 void		show(int sig);
@@ -56,5 +55,6 @@ void		print_stat(int sig);
 void		search_ip(ip_list_t *ip_lst, char *addr);
 void		error_exit(int err, char *exp1, char *exp2);
 char		*get_data_from_file(char *fname);
+ip_list_t	*insert(ip_list_t *p, struct in_addr addr, int count);
 
 #endif

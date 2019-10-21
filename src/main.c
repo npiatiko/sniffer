@@ -23,11 +23,7 @@ void	got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
 	(void)args;
 
 	ip = (struct ip *) (packet + SIZE_ETHERNET);
-	if (counter(g_ip_lst, ip->ip_src))
-	{
-		push_ip(&g_ip_lst, new_record(ip->ip_src));
-	}
-
+	g_ip_lst = insert(g_ip_lst, ip->ip_src, 1);
 }
 
 char *get_dev_name(void)
@@ -119,8 +115,7 @@ void sniff()
 			pcap_freecode(&fp);
 			pcap_close(handle);
 			save_ip_list(g_ip_lst, g_dev);
-			free_ip_list(g_ip_lst);
-			g_ip_lst = NULL;
+			free_ip_list(&g_ip_lst);
 		}
 		set_pid_file(0);
 		fprintf(stderr, "Capture complete.\n");
