@@ -57,7 +57,7 @@ void write_data_to_file(char *fname, char *str)
 	}
 }
 
-void	print_info()
+void	print_message()
 {
 	int fd, red;
 	char buf[BUF_SIZE] = {0};
@@ -65,8 +65,8 @@ void	print_info()
 	fd = open(FIFO_NAME, O_RDONLY);
 	while ((red = read(fd, buf, BUF_SIZE - 1)) > 0)
 	{
-		printf("%s", buf);
 		buf[red] = '\0';
+		printf("%s", buf);
 	}
 	close(fd);
 }
@@ -105,14 +105,19 @@ int		main(int ac, char **av)
 		{
 			write_data_to_file(I_FNAME, "");
 			kill(pid, SIGCONT);
+		}else
+		{
+			usage();
 		}
-
 	} else if (ac == 3)
 	{
 		if (!strcmp("stat", av[1]))
 		{
 			write_data_to_file(I_FNAME, av[2]);
 			kill(pid, SIGCONT);
+		}else
+		{
+			usage();
 		}
 	}else if (ac == 4)
 	{
@@ -125,9 +130,14 @@ int		main(int ac, char **av)
 		{
 			write_data_to_file(I_FNAME, av[3]);
 			kill(pid, SIGUSR2);
+		}else
+		{
+			usage();
 		}
+	}else
+	{
+		usage();
 	}
-	print_info();
-//	usleep(500000);
+	print_message();
 	return (0);
 }

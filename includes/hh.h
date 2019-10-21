@@ -12,6 +12,7 @@
 # include <unistd.h>
 # include <string.h>
 # include <net/if.h>
+#include <signal.h>
 
 # define APP_NAME "sniff"
 # define I_FNAME ".iface"
@@ -35,26 +36,23 @@ extern ip_list_t *g_ip_lst;
 extern char *g_dev;
 extern char g_change_dev;
 extern char g_stat;
-
+extern FILE *g_fifo;
 
 ip_list_t *new_record(struct in_addr addr, int count);
 ip_list_t	*load_ip_list(char *dev);
 void		got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet);
 void		usage(void);
 char		*get_filter_exp(char *iface);
-void		inorder_print(ip_list_t *ip_lst, FILE *f);
+void		print_ip_list(ip_list_t *ip_lst);
 void		print_all_stat();
-void		save_ip_list(ip_list_t *ip_lst, char *dev);
+void		save_ip_list(ip_list_t *ip_lst);
 void		free_ip_list(ip_list_t **ip_lst);
 void		set_pid_file(int pid);
-void		terminate_process(int signum);
-void		show(int sig);
-void		handle_change_dev(int sig);
 void		change_dev();
-void		print_stat(int sig);
 void		search_ip(ip_list_t *ip_lst, char *addr);
 void		error_exit(int err, char *exp1, char *exp2);
 char		*get_data_from_file(char *fname);
+void		signal_handler(int signum);
 ip_list_t	*insert(ip_list_t *p, struct in_addr addr, int count);
 
 #endif

@@ -2,7 +2,6 @@
 // Created by npiatiko on 09.10.2019.
 //
 #include <stdio.h>
-#include <signal.h>
 #include <netinet/ip.h>
 #include "hh.h"
 
@@ -89,14 +88,13 @@ void sniff()
 	struct bpf_program fp;
 	int pid;
 
-
 	if (!(pid = fork()))
 	{
 		setsid();
-		signal(SIGINT, terminate_process); /*stop*/
-		signal(SIGUSR1, show);  /*show [ip] count*/
-		signal(SIGUSR2, handle_change_dev);  /*select iface*/
-		signal(SIGCONT, print_stat);  /*stat*/
+		signal(SIGINT, signal_handler); /*stop*/
+		signal(SIGUSR1, signal_handler);  /*show [ip] count*/
+		signal(SIGUSR2, signal_handler);  /*select iface*/
+		signal(SIGCONT, signal_handler);  /*stat*/
 		while (g_restart)
 		{
 			if(g_change_dev)
@@ -106,19 +104,20 @@ void sniff()
 			}
 			if (g_stat)
 			{
-				g_stat = 0;
 				print_all_stat();
+				g_stat = 0;
 			}
 			g_ip_lst = load_ip_list(g_dev);
 			init(g_dev, &fp);
 			pcap_loop(handle, 0, got_packet, (u_char *) &g_ip_lst);
 			pcap_freecode(&fp);
 			pcap_close(handle);
-			save_ip_list(g_ip_lst, g_dev);
+			save_ip_list(g_ip_lst);
 			free_ip_list(&g_ip_lst);
 		}
 		set_pid_file(0);
-		fprintf(stderr, "Capture complete.\n");
+		fprintf(g_fifo, "Capture complete.\n");
+		fclose(g_fifo);
 	}
 	else
 	{

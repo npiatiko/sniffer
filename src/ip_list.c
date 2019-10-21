@@ -6,7 +6,9 @@
 #define RECORD_SIZE (sizeof(struct in_addr) + sizeof(int))
 #define BUF_SIZE (20 * RECORD_SIZE)
 
-ip_list_t *new_record(struct in_addr addr, int count)
+FILE *g_fifo = NULL;
+
+ip_list_t	*new_record(struct in_addr addr, int count)
 {
 	ip_list_t *new_rec = (ip_list_t *)malloc(sizeof(ip_list_t));
 
@@ -17,24 +19,24 @@ ip_list_t *new_record(struct in_addr addr, int count)
 	new_rec->right = NULL;
 	return (new_rec);
 }
-unsigned char height(ip_list_t* p)
+unsigned char	height(ip_list_t* p)
 {
 	return (p ? p->height : 0);
 }
 
-int bfactor(ip_list_t* p)
+int			bfactor(ip_list_t* p)
 {
 	return height(p->right)-height(p->left);
 }
 
-void fixheight(ip_list_t* p)
+void		fixheight(ip_list_t* p)
 {
 	unsigned char hl = height(p->left);
 	unsigned char hr = height(p->right);
 	p->height = (hl > hr ? hl : hr) + 1;
 }
 
-ip_list_t* rotateright(ip_list_t* p) // правый поворот вокруг p
+ip_list_t	*rotateright(ip_list_t* p) // правый поворот вокруг p
 {
 	ip_list_t* q = p->left;
 	p->left = q->right;
@@ -44,7 +46,7 @@ ip_list_t* rotateright(ip_list_t* p) // правый поворот вокруг
 	return (q);
 }
 
-ip_list_t* rotateleft(ip_list_t* q) // левый поворот вокруг q
+ip_list_t	*rotateleft(ip_list_t* q) // левый поворот вокруг q
 {
 	ip_list_t* p = q->right;
 	q->right = p->left;
@@ -54,7 +56,7 @@ ip_list_t* rotateleft(ip_list_t* q) // левый поворот вокруг q
 	return (p);
 }
 
-ip_list_t* balance(ip_list_t* p) // балансировка узла p
+ip_list_t	*balance(ip_list_t* p)
 {
 	fixheight(p);
 	if( bfactor(p)==2 )
@@ -69,11 +71,11 @@ ip_list_t* balance(ip_list_t* p) // балансировка узла p
 			p->left = rotateleft(p->left);
 		return rotateright(p);
 	}
-	return (p); // балансировка не нужна
+	return (p);
 }
 
-ip_list_t *insert(ip_list_t *p, struct in_addr addr,
-				  int count) // вставка ключа k в дерево с корнем p
+ip_list_t	*insert(ip_list_t *p, struct in_addr addr,
+				  int count)
 {
 	if(!p)
 	{
@@ -92,6 +94,30 @@ ip_list_t *insert(ip_list_t *p, struct in_addr addr,
 		p->left = insert(p->left, addr, count);
 	}
 	return (balance(p));
+}
+
+void		search_ip(ip_list_t *ip_lst, char *addr)
+{
+	struct in_addr ip;
+
+	if (inet_aton(addr, &ip))
+	{
+		while (ip_lst)
+		{
+			if (ip_lst->addr.s_addr == ip.s_addr)
+			{
+				fprintf(g_fifo, "%-15s\tcount = %d\n", addr,
+					   ip_lst->count);
+				return;
+			}
+			ip_lst = (ip.s_addr > ip_lst->addr.s_addr ? ip_lst->right : ip_lst->left);
+		}
+		fprintf(g_fifo, "%-15s - not found\n", addr);
+	}
+	else
+	{
+		fprintf(g_fifo, "%-15s:wrong format\n", addr);
+	}
 }
 
 ip_list_t	*load_ip_list(char *dev)
@@ -117,46 +143,70 @@ ip_list_t	*load_ip_list(char *dev)
 	return (ip_list);
 }
 
-void	preorder_write(ip_list_t *ip_lst, int fd)
+void	prefix(ip_list_t *root, void (*f)(ip_list_t *))
 {
-	if (!ip_lst)
+	if (!root)
 	{
 		return;
 	}
-	write(fd, &ip_lst->addr, sizeof(struct in_addr));
-	write(fd, &ip_lst->count, sizeof(int));
-	preorder_write(ip_lst->left, fd);
-	preorder_write(ip_lst->right, fd);
+	f(root);
+	prefix(root->left, f);
+	prefix(root->right, f);
 }
 
-void	save_ip_list(ip_list_t *ip_lst, char *dev)
+void	infix(ip_list_t *root, void (*f)(ip_list_t *))
 {
-	int fd = open(dev, O_RDWR | O_CREAT | O_TRUNC);
+	if (!root)
+	{
+		return;
+	}
+	infix(root->left, f);
+	f(root);
+	infix(root->right, f);
+}
 
-	preorder_write(ip_lst, fd);
+void	postfix(ip_list_t *root, void (*f)(ip_list_t *))
+{
+	if (!root)
+	{
+		return;
+	}
+	infix(root->left, f);
+	infix(root->right, f);
+	f(root);
+}
+
+void	print_data(ip_list_t *node)
+{
+	fprintf(g_fifo, "ip: %-15s\tcount = %d\n",
+			inet_ntoa(node->addr), node->count);
+}
+
+void	write_data(ip_list_t *node)
+{
+	int fd = open(g_dev, O_WRONLY | O_CREAT | O_APPEND);
+
+	write(fd, &node->addr, sizeof(struct in_addr));
+	write(fd, &node->count, sizeof(int));
 	close(fd);
 }
 
-void	inorder_print(ip_list_t *ip_lst, FILE *f)
+void	save_ip_list(ip_list_t *ip_lst)
 {
-	if (ip_lst == NULL)   // Базовый случай
-	{
-		return;
-	}
-	inorder_print(ip_lst->left, f);
-	fprintf(f, "ip: %s\tcount = %d\n", inet_ntoa(ip_lst->addr), ip_lst->count);
-	inorder_print(ip_lst->right, f);
+	unlink(g_dev);
+	prefix(ip_lst, write_data);
 }
 
+void	print_ip_list(ip_list_t *ip_lst)
+{
+	infix(ip_lst, print_data);
+}
+void	delete_node(ip_list_t *node)
+{
+	free(node);
+}
 void	free_ip_list(ip_list_t **ip_lst)
 {
-	if (!(*ip_lst))
-	{
-		return;
-	}
-	free_ip_list(&((*ip_lst)->left));
-	free_ip_list(&((*ip_lst)->right));
-//	printf("deleted :%s\n", inet_ntoa((*ip_lst)->addr));
-	free(*ip_lst);
+	postfix(*ip_lst, delete_node);
 	*ip_lst = NULL;
 }
