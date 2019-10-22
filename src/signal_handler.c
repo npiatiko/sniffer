@@ -5,80 +5,50 @@
 #include "hh.h"
 void terminate_process()
 {
-	g_restart = 0;
-	if (!(g_fifo = fopen(FIFO_NAME, "r+")))
-	{
-		printf("error open fifo");
-		exit(EXIT_FAILURE);
-	}
-	pcap_breakloop(handle);
+	g_need_restart = 0;
+	pcap_breakloop(g_handle);
 }
 
 void show()
 {
-	char tmp_str[GET_DATA_BUFSIZE];
-
-	if (!(g_fifo = fopen(FIFO_NAME, "r+")))
-	{
-		printf("error open fifo");
-		exit(EXIT_FAILURE);
-	}
-	memcpy(tmp_str, g_dev, strlen(g_dev) + 1);
-	search_ip(g_ip_lst, get_data_from_file(IP_FNAME));
-	memcpy(g_dev, tmp_str, strlen(tmp_str) + 1);
+	show_ip_count(g_ip_lst, get_data_from_file(IP_FNAME));
 	fclose(g_fifo);
-}
-
-void handle_change_dev()
-{
-	g_change_dev = 1;
-	pcap_breakloop(handle);
 }
 
 void	change_dev()
 {
-	char tmp_str[GET_DATA_BUFSIZE], errbuf[PCAP_ERRBUF_SIZE];
+	char *new_dev, errbuf[PCAP_ERRBUF_SIZE];
 	bpf_u_int32 mask, net;
 
-	memcpy(tmp_str, g_dev, strlen(g_dev) + 1);
-	g_dev = get_data_from_file(I_FNAME);
-	if (pcap_lookupnet(g_dev, &net, &mask, errbuf) == -1)
+	new_dev = get_data_from_file(I_FNAME);
+	if (pcap_lookupnet(new_dev, &net, &mask, errbuf) == -1)
 	{
-		printf("%s: wrong iface name.\n", g_dev);
-		memcpy(g_dev, tmp_str, strlen(tmp_str) + 1);
+		fprintf(g_fifo,"%s: wrong iface name.\n", new_dev);
 	}
-}
-void	print_stat()
-{
-	g_stat = 1;
-	pcap_breakloop(handle);
+	else
+	{
+		memcpy(g_dev, new_dev, strlen(new_dev) + 1);
+		fprintf(g_fifo,"%s: the device has been successfully changed\n", g_dev);
+	}
+	fclose(g_fifo);
 }
 
-
-void print_all_stat()
+void print_stat()
 {
 	struct if_nameindex *ni;
 	int i;
 	ip_list_t *ip_lst = NULL;
-	char tmp_str[GET_DATA_BUFSIZE];
+	char *dev;
 
-	if (!(g_fifo = fopen(FIFO_NAME, "r+")))
+	dev = get_data_from_file(I_FNAME);
+	if (strlen(dev))
 	{
-		printf("error open fifo");
-		exit(EXIT_FAILURE);
-	}
-	memcpy(tmp_str, g_dev, strlen(g_dev) + 1);
-	g_dev = get_data_from_file(I_FNAME);
-	if (strlen(g_dev))
-	{
-		ip_lst = load_ip_list(g_dev);
+		ip_lst = load_ip_list(dev);
 		print_ip_list(ip_lst);
 		free_ip_list(&ip_lst);
-		memcpy(g_dev, tmp_str, strlen(tmp_str) + 1);
 	}
 	else
 	{
-		memcpy(g_dev, tmp_str, strlen(tmp_str) + 1);
 		ni = if_nameindex();
 		if (ni == NULL)
 		{
@@ -98,6 +68,11 @@ void print_all_stat()
 
 void	signal_handler(int signum)
 {
+	if (!(g_fifo = fopen(FIFO_NAME, "r+")))
+	{
+		printf("error open fifo");
+		exit(EXIT_FAILURE);
+	}
 	switch (signum)
 	{
 		case SIGINT:
@@ -107,10 +82,12 @@ void	signal_handler(int signum)
 			show();
 			break;
 		case SIGUSR2:
-			handle_change_dev();
+			g_need_change_dev = 1;
+			pcap_breakloop(g_handle);
 			break;
 		case SIGCONT:
-			print_stat();
+			g_need_print_stat = 1;
+			pcap_breakloop(g_handle);
 			break;
 		default:
 			break;

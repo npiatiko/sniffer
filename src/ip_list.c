@@ -10,8 +10,13 @@ FILE *g_fifo = NULL;
 
 ip_list_t	*new_record(struct in_addr addr, int count)
 {
-	ip_list_t *new_rec = (ip_list_t *)malloc(sizeof(ip_list_t));
+	ip_list_t *new_rec = NULL;
 
+	if (!(new_rec = (ip_list_t *)malloc(sizeof(ip_list_t))))
+	{
+		free_ip_list(&g_ip_lst);
+		exit(EXIT_FAILURE);
+	}
 	new_rec->count = count;
 	new_rec->height = 1;
 	new_rec->addr = addr;
@@ -96,7 +101,7 @@ ip_list_t	*insert(ip_list_t *p, struct in_addr addr,
 	return (balance(p));
 }
 
-void		search_ip(ip_list_t *ip_lst, char *addr)
+void		show_ip_count(ip_list_t *ip_lst, char *addr)
 {
 	struct in_addr ip;
 
