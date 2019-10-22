@@ -44,7 +44,7 @@ void		fixheight(ip_list_t* p)
 	p->height = (hl > hr ? hl : hr) + 1;
 }
 
-ip_list_t	*rotateright(ip_list_t* p) // правый поворот вокруг p
+ip_list_t	*rotateright(ip_list_t* p)
 {
 	ip_list_t* q = p->left;
 	p->left = q->right;
@@ -54,7 +54,7 @@ ip_list_t	*rotateright(ip_list_t* p) // правый поворот вокруг
 	return (q);
 }
 
-ip_list_t	*rotateleft(ip_list_t* q) // левый поворот вокруг q
+ip_list_t	*rotateleft(ip_list_t* q)
 {
 	ip_list_t* p = q->right;
 	q->right = p->left;
