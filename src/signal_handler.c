@@ -35,7 +35,7 @@ void	change_dev()
 
 void print_stat()
 {
-	struct if_nameindex *ni;
+	struct if_nameindex *ni = NULL;
 	int i;
 	ip_list_t *ip_lst = NULL;
 	char *dev;
@@ -62,6 +62,7 @@ void print_stat()
 			print_ip_list(ip_lst);
 			free_ip_list(&ip_lst);
 		}
+		if_freenameindex(ni);
 	}
 	fclose(g_fifo);
 }
