@@ -87,8 +87,8 @@ void	signal_handler(int signum)
 			pcap_breakloop(g_handle);
 			break;
 		case SIGCONT:
-			g_need_print_stat = 1;
-			pcap_breakloop(g_handle);
+			save_ip_list(g_ip_lst);
+			print_stat();
 			break;
 		default:
 			break;

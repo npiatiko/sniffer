@@ -2,6 +2,7 @@
 // Created by npiatiko on 09.10.2019.
 //
 
+#include <errno.h>
 #include "hh.h"
 #define RECORD_SIZE (sizeof(struct in_addr) + sizeof(int))
 #define BUF_SIZE (20 * RECORD_SIZE)
@@ -15,6 +16,7 @@ ip_list_t	*new_record(struct in_addr addr, int count)
 	if (!(new_rec = (ip_list_t *)malloc(sizeof(ip_list_t))))
 	{
 		free_ip_list(&g_ip_lst);
+		error_exit(6, strerror(errno), "");
 		exit(EXIT_FAILURE);
 	}
 	new_rec->count = count;
@@ -38,6 +40,7 @@ void		fixheight(ip_list_t* p)
 {
 	unsigned char hl = height(p->left);
 	unsigned char hr = height(p->right);
+
 	p->height = (hl > hr ? hl : hr) + 1;
 }
 
@@ -191,9 +194,14 @@ void	write_data(ip_list_t *node)
 {
 	int fd = open(g_dev, O_WRONLY | O_CREAT | O_APPEND);
 
-	write(fd, &node->addr, sizeof(struct in_addr));
-	write(fd, &node->count, sizeof(int));
-	close(fd);
+	if (fd > 0)
+	{
+		write(fd, &node->addr, sizeof(struct in_addr));
+		write(fd, &node->count, sizeof(int));
+		close(fd);
+	}
+	else
+		error_exit(7, g_dev, "");
 }
 
 void	save_ip_list(ip_list_t *ip_lst)

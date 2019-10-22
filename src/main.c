@@ -9,8 +9,7 @@ pcap_t		*g_handle;
 ip_list_t	*g_ip_lst = NULL;
 char		g_dev[DEV_NAME_SIZE] = {0},
 			g_need_restart = 1,
-			g_need_change_dev = 0,
-			g_need_print_stat = 0;
+			g_need_change_dev = 0;
 
 void	usage(void)
 {
@@ -42,16 +41,24 @@ char *get_dev_name(void)
 
 void	error_exit(int err, char *exp1, char *exp2)
 {
-	char *error[] =
-			{
-					"Couldn't open device %s: %s\n",
-					"Couldn't get netmask for device %s: %s\n",
-					"%s is not an Ethernet\n",
-					"Couldn't parse filter %s: %s\n",
-					"Couldn't install filter %s: %s\n",
-					"Couldn't find default device: %s\n"
-			};
-	fprintf(stderr, error[err], exp1, exp2);
+	FILE *f;
+
+	if ((f = fopen(LOG_FILE, "w+")))
+	{
+		char *error[] =
+				{
+						"Couldn't open device %s: %s\n",
+						"Couldn't get netmask for device %s: %s\n",
+						"%s is not an Ethernet\n",
+						"Couldn't parse filter %s: %s\n",
+						"Couldn't install filter %s: %s\n",
+						"Couldn't find default device: %s\n",
+						"Malloc: %s\n",
+						"%s: error open file.\n"
+				};
+		fprintf(f, error[err], exp1, exp2);
+		fclose(f);
+	}
 	exit(EXIT_FAILURE);
 }
 
@@ -85,8 +92,14 @@ void	init(char *dev, struct bpf_program *fp)
 		error_exit(4, filter_exp, pcap_geterr(g_handle));
 	}
 }
-
-void sniff()
+void	set_signals()
+{
+	signal(SIGINT, signal_handler); /*stop*/
+	signal(SIGUSR1, signal_handler);  /*show [ip] count*/
+	signal(SIGUSR2, signal_handler);  /*select iface*/
+	signal(SIGCONT, signal_handler);  /*stat*/
+}
+void	sniff()
 {
 	struct bpf_program fp;
 	int pid;
@@ -94,10 +107,7 @@ void sniff()
 	if (!(pid = fork()))
 	{
 		setsid();
-		signal(SIGINT, signal_handler); /*stop*/
-		signal(SIGUSR1, signal_handler);  /*show [ip] count*/
-		signal(SIGUSR2, signal_handler);  /*select iface*/
-		signal(SIGCONT, signal_handler);  /*stat*/
+		set_signals();
 		while (g_need_restart)
 		{
 			if(g_need_change_dev)
@@ -105,17 +115,12 @@ void sniff()
 				change_dev();
 				g_need_change_dev = 0;
 			}
-			if (g_need_print_stat)
-			{
-				print_stat();
-				g_need_print_stat = 0;
-			}
 			g_ip_lst = load_ip_list(g_dev);
 			init(g_dev, &fp);
 			pcap_loop(g_handle, 0, got_packet, (u_char *) &g_ip_lst);
+			save_ip_list(g_ip_lst);
 			pcap_freecode(&fp);
 			pcap_close(g_handle);
-			save_ip_list(g_ip_lst);
 			free_ip_list(&g_ip_lst);
 		}
 		set_pid_file(0);
@@ -132,6 +137,7 @@ void sniff()
 int		main(int ac, char **av)
 {
 	(void)av;
+	unlink(LOG_FILE);
 	ac > 1 ? (usage()): 0;
 	if (ac == 1)
 	{

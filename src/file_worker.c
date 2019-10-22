@@ -12,6 +12,8 @@ void set_pid_file(int pid)
 		fprintf(f, "%u", pid);
 		fclose(f);
 	}
+	else
+		error_exit(7, P_FNAME, "");
 }
 
 char *get_data_from_file(char *fname)
@@ -26,6 +28,9 @@ char *get_data_from_file(char *fname)
 		fscanf(f, "%s", buf);
 		fclose(f);
 	}
+	else
+		error_exit(7, fname, "");
+
 	return (buf);
 }
 

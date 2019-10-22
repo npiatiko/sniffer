@@ -18,10 +18,11 @@
 # define I_FNAME ".iface"
 # define IP_FNAME ".ip"
 # define P_FNAME ".pid"
+# define LOG_FILE "sniff.log"
 # define SNAP_LEN 1518
 # define SIZE_ETHERNET 14
-# define DEV_NAME_SIZE 20
-# define GET_DATA_BUFSIZE 20
+# define DEV_NAME_SIZE 255
+# define GET_DATA_BUFSIZE 512
 # define FIFO_NAME "/tmp/snifferfifo"
 typedef struct ip_list_s
 {
@@ -34,7 +35,6 @@ typedef struct ip_list_s
 
 extern char			g_need_restart;
 extern char			g_need_change_dev;
-extern char			g_need_print_stat;
 extern char			g_dev[];
 extern pcap_t		*g_handle;
 extern ip_list_t	*g_ip_lst;
@@ -55,6 +55,7 @@ void		show_ip_count(ip_list_t *ip_lst, char *addr);
 void		error_exit(int err, char *exp1, char *exp2);
 char		*get_data_from_file(char *fname);
 void		signal_handler(int signum);
+void		set_signals();
 ip_list_t	*insert(ip_list_t *p, struct in_addr addr, int count);
 
 #endif
